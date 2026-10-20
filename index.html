@@ -1,0 +1,1833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1 user-scalable=no">
+<meta name="description" content="Enclose: draw fences on a lattice, cut your rivals' walls, and bank the land you close. 2-4 players, hot-seat or AI.">
+<meta name="theme-color" content="#15803d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Enclose</title>
+<style>
+:root { color-scheme: light; --bg: #f3efe4; --card: #ffffff; --line: #d9d2bd; --soft: #fbf8ee;
+        --fg: #1d2532; --mut: #5d6874; --acc: #15803d; --gold: #b45309; --good: #15803d; --bad: #b91c1c;
+        --btn: #ffffff; --btn-hi: #eef2f7; --shadow: rgba(60,50,20,.14);
+        --p0: #0e7490; --p1: #b45309; --p2: #7c3aed; --p3: #be123c; --poison: #a21caf; --boost: #15803d; }
+body.dark { color-scheme: dark; --bg: #0b0e14; --card: #11151d; --line: #2a3342; --soft: #151a24;
+            --fg: #e6e9f0; --mut: #9aa3b2; --acc: #4ade80; --gold: #fbbf24; --good: #4ade80; --bad: #f87171;
+            --btn: #1a2230; --btn-hi: #243145; --shadow: rgba(0,0,0,.45);
+            --p0: #22d3ee; --p1: #fbbf24; --p2: #a78bfa; --p3: #fb7185; --poison: #d946ef; --boost: #4ade80; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body { font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--fg);
+       background: radial-gradient(1200px 400px at 50% -80px, #fffdf4 0%, var(--bg) 60%) fixed, var(--bg);
+       min-height: 100vh; }
+body.dark { background: radial-gradient(1200px 400px at 50% -80px, #16202e 0%, var(--bg) 60%) fixed, var(--bg); }
+header { text-align: center; padding: 18px 12px 4px; }
+header h1 { margin: 0; font-size: clamp(26px, 5.5vw, 40px); font-weight: 900; letter-spacing: .04em; }
+header h1 .g { color: var(--acc); }
+.sub { margin: 2px 0 0; color: var(--mut); font-size: 13px; }
+section { max-width: 1080px; margin: 0 auto; padding: 0 12px 40px; }
+#turnTitle { text-align: center; margin: 10px 0 6px; }
+#turnTitle h2 { margin: 0; font-size: 18px; }
+#blurb { margin: 2px 0 0; color: var(--mut); font-size: 12.5px; min-height: 18px; }
+#gameMain { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+#boardWrap { width: min(600px, 94vw); }
+#boardRow { display: flex; gap: 10px; align-items: stretch; }
+#evalCol { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 32px; }
+#evalbar { flex: 1; width: 24px; background: var(--line); border-radius: 8px; overflow: hidden;
+           position: relative; min-height: 220px; display: flex; flex-direction: column-reverse; }
+.eseg { width: 100%; display: flex; align-items: center; justify-content: center; font-size: 8.5px;
+        font-weight: 700; letter-spacing: -.3px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.55);
+        overflow: hidden; transition: height .3s ease; }
+.eseg.p0 { background: var(--p0); } .eseg.p1 { background: var(--p1); }
+.eseg.p2 { background: var(--p2); } .eseg.p3 { background: var(--p3); }
+#evalnum { font-size: 10px; color: var(--mut); font-variant-numeric: tabular-nums; writing-mode: vertical-rl; }
+#boardCard { flex: 1; background: var(--soft); border: 1px solid var(--line); border-radius: 12px;
+             padding: 6px; box-shadow: 0 8px 24px var(--shadow); min-width: 0; }
+#board { width: 100%; height: auto; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+#board .bg { fill: var(--soft); }
+  #board .dot { fill: var(--line); }
+  #board .barrier { fill: #000; stroke: var(--fg); stroke-opacity: .55; stroke-width: 2;
+    pointer-events: none; }
+  #board .poison { fill: var(--poison); stroke: rgba(0,0,0,.3); stroke-width: 1.5; opacity: .92;
+    pointer-events: none; }
+  #board .boost { fill: var(--boost); stroke: rgba(0,0,0,.3); stroke-width: 1.5; opacity: .92;
+    pointer-events: none; }
+  #board .poisonTint { fill: var(--poison); opacity: .25; pointer-events: none; }
+  #board .boostTint { fill: var(--boost); opacity: .25; pointer-events: none; }
+  #board .poison.holder0, #board .boost.holder0 { stroke: var(--p0); stroke-width: 2; }
+  #board .poison.holder1, #board .boost.holder1 { stroke: var(--p1); stroke-width: 2; }
+  #board .poison.holder2, #board .boost.holder2 { stroke: var(--p2); stroke-width: 2; }
+  #board .poison.holder3, #board .boost.holder3 { stroke: var(--p3); stroke-width: 2; }
+  #board .playarea { fill: none; stroke: var(--line); stroke-opacity: .4; stroke-width: 2.5; }
+#board .coord { fill: var(--mut); font-size: 11px; font-family: inherit; pointer-events: none; }
+#board .fill0 { fill: var(--p0); opacity: .13; }
+#board .fill1 { fill: var(--p1); opacity: .13; }
+#board .fill2 { fill: var(--p2); opacity: .13; }
+#board .fill3 { fill: var(--p3); opacity: .13; }
+#board .edge { stroke-linecap: round; stroke-width: 3.4; fill: none; }
+#board .edge.p0 { stroke: var(--p0); } #board .edge.p1 { stroke: var(--p1); }
+#board .edge.p2 { stroke: var(--p2); } #board .edge.p3 { stroke: var(--p3); }
+#board .edge.inv { stroke-width: 4.4; }
+#board .edge.p0.inv { filter: drop-shadow(0 0 3px var(--p0)); }
+#board .edge.p1.inv { filter: drop-shadow(0 0 3px var(--p1)); }
+#board .edge.p2.inv { filter: drop-shadow(0 0 3px var(--p2)); }
+#board .edge.p3.inv { filter: drop-shadow(0 0 3px var(--p3)); }
+#board .post { stroke: none; }
+#board .post.p0 { fill: var(--p0); } #board .post.p1 { fill: var(--p1); }
+#board .post.p2 { fill: var(--p2); } #board .post.p3 { fill: var(--p3); }
+#board .hitpost { fill: transparent; cursor: pointer; }
+#board .target { fill: var(--acc); fill-opacity: .10; stroke: var(--acc); stroke-opacity: .35; cursor: pointer; }
+#board .target.hot { fill-opacity: .24; stroke-opacity: .7; }
+#board .selring { fill: none; stroke: var(--fg); stroke-width: 1.6; opacity: .85; pointer-events: none; }
+#board .band { fill: var(--fg); fill-opacity: .06; stroke: var(--fg); stroke-opacity: .4; stroke-width: 1.2; stroke-dasharray: 4 4; pointer-events: none; }
+#board .last { stroke: var(--fg); opacity: .14; stroke-width: 10; stroke-linecap: round; fill: none; }
+#board .hintline { stroke: var(--acc); stroke-width: 2; stroke-dasharray: 5 4; opacity: .85; fill: none; }
+#board .hintring { fill: none; stroke: var(--acc); stroke-width: 2; opacity: .9; }
+#banner { text-align: center; min-height: 22px; margin-top: 8px; font-weight: 600; font-size: 13.5px; }
+#banner.good { color: var(--good); } #banner.bad { color: var(--bad); } #banner.warn { color: var(--gold); }
+#side { width: 310px; display: flex; flex-direction: column; gap: 10px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+        box-shadow: 0 3px 10px var(--shadow); }
+.card h3 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--mut); font-weight: 700; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+.row[hidden] { display: none; }
+.row label { font-size: 12.5px; color: var(--mut); }
+.row label.check { display: flex; gap: 6px; align-items: center; color: var(--fg); cursor: pointer; }
+select { background: var(--btn); color: var(--fg); border: 1px solid #b9c2cf; border-radius: 8px; padding: 6px 8px; font-size: 13px; }
+button { background: var(--btn); color: var(--fg); border: 1px solid #b9c2cf; border-radius: 8px; padding: 8px 12px;
+         font-size: 13px; cursor: pointer; transition: background .12s ease, border-color .12s ease, transform .06s ease; }
+button:hover:not(:disabled) { background: var(--btn-hi); border-color: var(--acc); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+button:disabled { opacity: .4; cursor: default; }
+button.primary { background: var(--acc); border-color: var(--acc); font-weight: 700; color: #fff; }
+body.dark button.primary { color: #062012; }
+button.ghost { background: transparent; }
+.row button { flex: 1; }
+.meter { justify-content: space-between; font-size: 12px; color: var(--mut); font-variant-numeric: tabular-nums; }
+#ticks { letter-spacing: 2px; color: var(--acc); font-size: 12px; }
+.prow { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-variant-numeric: tabular-nums; }
+.prow.me { font-weight: 700; }
+.pdot { width: 11px; height: 11px; border-radius: 50%; flex: none; }
+.pdot.p0 { background: var(--p0); } .pdot.p1 { background: var(--p1); }
+.pdot.p2 { background: var(--p2); } .pdot.p3 { background: var(--p3); }
+.pname { flex: 1; font-size: 13px; }
+.pbank { font-weight: 700; }
+.plive { color: var(--mut); font-size: 11px; min-width: 52px; text-align: right; }
+#log { max-height: 160px; overflow: auto; font-size: 12px; }
+.mline { display: flex; gap: 7px; align-items: center; padding: 1.5px 0; }
+.mchip { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.mchip.p0 { background: var(--p0); } .mchip.p1 { background: var(--p1); }
+.mchip.p2 { background: var(--p2); } .mchip.p3 { background: var(--p3); }
+.mtext { font-variant-numeric: tabular-nums; color: var(--fg); }
+.mcut { color: var(--bad); }
+.fold { position: relative; cursor: pointer; }
+.fold .fold-body { max-height: 0; overflow: hidden; transition: max-height .22s ease; color: var(--mut); font-size: 12.5px; }
+.fold.open .fold-body, .fold:hover .fold-body { max-height: 400px; padding-top: 6px; }
+.foldhint { float: right; font-size: 9.5px; font-weight: 400; text-transform: none;
+            letter-spacing: 0; color: var(--mut); opacity: .8; }
+#gameCard .fold-body { color: var(--fg); font-size: 13px; cursor: default; }
+#gameCard .fold-body button, #gameCard .fold-body .check { cursor: pointer; }
+#infoModal { position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(2px);
+             display: flex; align-items: center; justify-content: center; z-index: 20; padding: 16px; }
+#infoModal[hidden] { display: none; }
+#infoInner { background: var(--card); border: 1px solid var(--line); border-radius: 12px; max-width: 560px;
+             width: 100%; max-height: 86vh; overflow: auto; padding: 18px 20px; position: relative; }
+#infoInner h2 { margin: 0 0 8px; font-size: 20px; }
+#infoInner p { font-size: 13px; color: var(--fg); }
+#infoInner .m { color: var(--mut); }
+#infoClose { position: absolute; top: 10px; right: 10px; }
+.seatline { display: flex; align-items: center; gap: 10px; margin: 8px 0; text-align: left; }
+.seatline .pdot { width: 14px; height: 14px; }
+.seatline .sname { flex: 1; font-weight: 700; font-size: 14px; }
+.seatline select { font-size: 13px; padding: 6px 8px; min-width: 132px; cursor: pointer; }
+#seatCard .fold-body { color: var(--fg); font-size: 13px; cursor: default; }
+.credit { margin-top: 14px; font-size: 11.5px; color: var(--mut); }
+.credit a { color: var(--acc); }
+kbd { background: var(--btn); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px;
+      padding: 0 5px; font-size: 11px; font-family: inherit; }
+.corner { position: fixed; top: 12px; width: 44px; height: 44px; border-radius: 12px; z-index: 60;
+          display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700;
+          background: var(--card); border: 1px solid var(--line); color: var(--fg); cursor: pointer;
+          box-shadow: 0 3px 10px var(--shadow); }
+#infoBtn { right: 12px; }
+#themeToggle { right: 64px; }
+#confettiBox { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 9998; }
+.conf { position: absolute; top: -12px; width: 8px; height: 12px; opacity: .9; animation: fall linear forwards; }
+@keyframes fall { to { transform: translateY(105vh) rotate(540deg); opacity: .2; } }
+@media (max-width: 560px) {
+  header h1 { padding-right: 120px; }
+  #evalCol { display: none; }
+  #side { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .conf { display: none; } * { transition: none !important; } }
+</style>
+</head>
+<body class="light">
+<header>
+  <h1>Enc<span class="g">l</span>ose</h1>
+  <p class="sub" id="tagline">Draw fences. Bank the land you close.</p>
+</header>
+<button class="corner" id="infoBtn" title="Rules &amp; about (I)">?</button>
+<button class="corner" id="themeToggle" title="Theme (L)"></button>
+<section>
+  <div id="turnTitle">
+    <h2 id="turnHead">First to move</h2>
+    <p id="blurb">Click one of your posts, then a glowing target.</p>
+  </div>
+  <main id="gameMain">
+    <div id="boardWrap">
+      <div id="boardRow">
+        <div id="evalCol">
+          <div id="evalbar"></div>
+          <div id="evalnum">even</div>
+        </div>
+        <div id="boardCard"><svg id="board" xmlns="http://www.w3.org/2000/svg"></svg></div>
+      </div>
+      <div id="banner"></div>
+      <div class="card fold" id="aiCard">
+        <h3>How a turn works</h3>
+        <div class="fold-body">
+          A turn draws the edges allowed for it (default two; your very first turn of
+          the game draws one).
+          Each edge starts at one of <b>your own</b> posts and reaches any lattice
+          node within your <b>reach</b> box &mdash; diagonals included. You may cut at most
+          one rival edge per stroke, never one that is still glowing (drawn last
+          turn, or an opening stick during the first round).
+          Every time a player runs out of actions, <b>everyone</b> banks their whole
+          live area into their score. After the edge cap, the highest banked score wins.
+        </div>
+      </div>
+    </div>
+    <div id="side">
+      <div class="card">
+        <h3>Controls</h3>
+        <div class="row"><button id="undo">↩ Undo (U)</button><button id="reset">New (R)</button></div>
+        <div class="row"><button id="hint">Hint (H)</button>
+          <label class="check"><input type="checkbox" id="showbar"> Eval (E)</label></div>
+      </div>
+      <div class="card fold" id="gameCard">
+        <h3>Game Controls <span class="foldhint">hover or press C</span></h3>
+        <div class="fold-body">
+        <div class="row"><label for="players">Players</label><select id="players">
+          <option value="2" selected>2</option><option value="4">4</option></select></div>
+        <div class="row"><label for="size">Board</label><select id="size">
+          <option value="11">11 &times; 11</option><option value="15">15 &times; 15</option>
+          <option value="19" selected>19 &times; 19</option><option value="23">23 &times; 23</option></select></div>
+        <div class="row"><label for="radius">Reach</label><select id="radius">
+          <option value="2">2 nodes</option><option value="3" selected>3 nodes</option><option value="4">4 nodes</option></select></div>
+        <div class="row"><label for="shape">Shape</label><select id="shape">
+          <option value="square" selected>Square</option>
+          <option value="octagon">Octagon</option></select></div>
+        <div class="row"><label for="perturn">Per turn</label><select id="perturn">
+          <option value="1">1 edge</option><option value="2" selected>2 edges</option><option value="3">3 edges</option></select></div>
+        <div class="row"><label for="maxedges">Edges each</label><select id="maxedges">
+          <option value="40">40</option><option value="50">50</option><option value="60" selected>60</option>
+          <option value="70">70</option><option value="80">80</option><option value="90">90</option>
+          <option value="100">100</option></select></div>
+        <div class="row"><label class="check" title="Random blocked rocks on the lattice each new match">
+            <input type="checkbox" id="barriers"> Barriers</label>
+          <label class="check" title="Rival pockets inside your ring still score for their builder">
+            <input type="checkbox" id="enclaves" checked> Enclaves</label></div>
+        <div class="row"><label class="check" title="Purple spots: a pen closed around one scores against you">
+            <input type="checkbox" id="poison"> Poison spots</label>
+          <label class="check" title="Green spots: a pen closed around one scores 50% more per spot">
+            <input type="checkbox" id="boost"> Boost spots</label></div>
+        </div>
+      </div>
+      <div class="card fold" id="seatCard">
+        <h3>Choose players <span class="foldhint">hover or press A</span></h3>
+        <div class="fold-body" id="seatRows"></div>
+      </div>
+      <div class="card">
+        <h3>Scores</h3>
+        <div id="scores"></div>
+        <div class="row meter"><span id="meterLabel">0 of 120 edges (60 each)</span><span id="ticks"></span></div>
+      </div>
+      <div class="card">
+        <h3>Move log</h3>
+        <div id="log"></div>
+      </div>
+    </div>
+  </main>
+</section>
+<div id="infoModal" hidden>
+  <div id="infoInner">
+    <button id="infoClose" class="ghost">&#10005;</button>
+    <h2>Enclose</h2>
+    <p>A territory game on a lattice. Draw fences from your own posts, close loops to
+    enclose land, and cut rival fences to steal it. Land you hold is banked into your
+    score every time any player finishes a turn &mdash; so holding ground early pays off
+    again and again.</p>
+    <p><b>Making a move.</b> Click one of your posts (the big dots of your colour), then
+    click a glowing target &mdash; or drag from post to target. An edge may reach any node
+    within your reach box around the start post. You cannot overlap your own fence or
+    hop over your own posts, and each stroke may cut at most one rival fence.</p>
+    <p><b>Fresh fences glow.</b> A fence drawn this turn (and through every rival's next
+    turn) cannot be cut. Opening sticks glow through the first round too &mdash; nobody can
+    kill a starting stick before its owner's first turn. Plan around it: close a pen, and
+    rivals must wait before snipping it open.</p>
+    <p><b>Scoring.</b> When a player runs out of actions for their turn, every player
+    banks their current enclosed area. After everyone's edge allowance is spent the
+    highest banked total wins; equal tops draw. A seat with no legal edge passes
+    automatically.</p>
+    <p><b>Enclaves (the confusing bit, clarified).</b> A closed ring that sits wholly
+    inside a rival's bigger ring is an <i>enclave</i>. Your own nested rings never
+    double-count &mdash; only your outer ring scores, and its area already includes
+    the inner ground. Cross-player pockets work like this:
+    <b>Enclaves box ticked</b> (default): the pocket keeps scoring for its
+    builder <i>and</i> the outer ring's area still covers that same ground, so one
+    pocket can score twice for two players. <b>Enclaves box cleared</b>: the
+    outermost ring claims everything it surrounds &mdash; any rival pocket inside your
+    ring scores zero for its builder, while your own total is unchanged (it already
+    covered that ground). Nothing about your fences changes either way, only the
+    numbers each pocket is worth.</p>
+    <p><b>Poison spots.</b> Tick <b>Poison spots</b> and 3&ndash;6 purple spots
+    appear each new match. Close a ring <i>around</i> one and that whole pen turns
+    against you: it scores negative from then on &mdash; a clean +64 pen around a
+    spot becomes &minus;64, which can eat back into what you've already banked,
+    but your total is never allowed below 0 &mdash; and it is contagious: a rival whose bigger ring
+    swallows your infected pocket gets infected too. Two spots in one ring only
+    flip it once &mdash; a spot your fence merely grazes still counts (touching is
+    enough) &mdash; and spots never block fences. The AI avoids them as much as you should.</p>
+    <p><b>Boost spots.</b> Tick <b>Boost spots</b> and 2&ndash;6 green spots
+    appear each new match. Close a ring <i>around</i> one and that pen scores
+    <b>50% more</b> &mdash; +64 becomes +96 &mdash; stacking multiplicatively per
+    spot (two spots &times;2.25, rounded). Poison still trumps: a pen that
+    contains a purple spot stays negative and ignores the green ones. Like
+    poison, spots never block fences; the AI plays for the boost. On the
+    board a boosted pen's shading tints green and an infected pen's purple
+    &mdash; on top of its owner's colour.</p>
+    <p class="m"><b>Variants.</b> 2 or 4 players, board size, reach, board
+    shape (square / octagon &mdash; the grid stays the same, off-shape
+    nodes simply sit out), edges
+    per turn and the per-player edge allowance (40&ndash;100 each, defaulting to
+    60 / 80 / 90 for 2 / 3 / 4 players) all live in the <b>Game Controls</b> card
+    &mdash; hover it or press <kbd>C</kbd> to open; changing any setting starts a new
+    game. Three scoring/board toggles live there too: <b>Barriers</b> scatters a
+    couple of compact blocked &ldquo;rocks&rdquo; over the lattice every new match
+    (no fence may end on, pass over, or touch them &mdash; but land you enclose around
+    them still counts normally), <b>Enclaves</b> switches between the two
+    pocket rules explained under Scoring above, and <b>Poison spots</b> /
+    <b>Boost spots</b> scatter the purple hazards and green bonuses explained
+    just above. The <b>Choose players</b> panel
+    (hover it or press <kbd>A</kbd>) sits right under Game Controls and assigns
+    Human or AI (Easy/Normal/Hard) to every seat &mdash; mix freely (any Human seat
+    pauses the game on it), set every seat to AI and watch them play each
+    other; pressing <kbd>A</kbd> on a fully-AI table grabs seat 1 for you. The
+    eval bar splits one bar into every seat's share of the board, in
+    any mode.</p>
+    <p class="m"><kbd>U</kbd> undo &middot; <kbd>R</kbd> new game &middot; <kbd>H</kbd> hint &middot;
+    <kbd>A</kbd> choose players &middot;
+    <kbd>C</kbd> game controls &middot; <kbd>E</kbd> eval bar &middot; <kbd>Q</kbd> quiet (mute sounds) &middot;
+    <kbd>L</kbd> theme &middot; <kbd>I</kbd> this panel &middot; <kbd>Esc</kbd> close</p>
+    <p class="credit">Rules cloned from
+      <a href="https://strategyjam.org/enclosure" target="_blank" rel="noopener">strategyjam.org/enclosure</a>;
+      engine differentially tested against the original. Built like Dictate &amp; Squadro &mdash;
+      one file, no dependencies.<br>
+      Clone by Malcolm Blakeman &mdash;
+      <a href="https://github.com/malcolmblakeman" target="_blank" rel="noopener">github.com/malcolmblakeman</a>.</p>
+  </div>
+</div>
+<div id="confettiBox"></div>
+<script>
+"use strict";
+/* ================= ENGINE (pure, no DOM) ================= */
+/* __ENGINE_START__ */
+var LETTERS = "abcdefghijklmnopqrstuvwxyz";
+var SCALE = 360360;
+var AREA_UNIT = 2 * SCALE * SCALE;
+
+function samePoint(a, b) { return a[0] === b[0] && a[1] === b[1]; }
+function cross(ax, ay, bx, by) { return ax * by - ay * bx; }
+function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+function normalize(seg) {
+  var from = seg.from, to = seg.to, out = {};
+  for (var key in seg) out[key] = seg[key];
+  out.from = [from[0], from[1]]; out.to = [to[0], to[1]];
+  out.x0 = Math.min(from[0], to[0]); out.x1 = Math.max(from[0], to[0]);
+  out.y0 = Math.min(from[1], to[1]); out.y1 = Math.max(from[1], to[1]);
+  return out;
+}
+function bboxOverlap(a, b) { return a.x0 <= b.x1 && b.x0 <= a.x1 && a.y0 <= b.y1 && b.y0 <= a.y1; }
+function intersect(a, b) {
+  if (!bboxOverlap(a, b)) return 0;
+  var ax = a.to[0] - a.from[0], ay = a.to[1] - a.from[1];
+  var bx = b.to[0] - b.from[0], by = b.to[1] - b.from[1];
+  var sx = b.from[0] - a.from[0], sy = b.from[1] - a.from[1];
+  var denom = cross(ax, ay, bx, by);
+  if (denom === 0) {
+    if (cross(sx, sy, ax, ay) !== 0) return 0;
+    var overlaps = ax === 0
+      ? Math.min(a.y1, b.y1) > Math.max(a.y0, b.y0)
+      : Math.min(a.x1, b.x1) > Math.max(a.x0, b.x0);
+    return overlaps ? 2 : 1;
+  }
+  var sign = denom > 0 ? 1 : -1;
+  var t = cross(sx, sy, bx, by) * sign;
+  var u = cross(sx, sy, ax, ay) * sign;
+  var size = Math.abs(denom);
+  return t < 0 || t > size || u < 0 || u > size ? 0 : 1;
+}
+function strictlyInside(point, seg) {
+  var x = point[0], y = point[1];
+  if (x < seg.x0 || x > seg.x1 || y < seg.y0 || y > seg.y1) return false;
+  if ((seg.to[0] - seg.from[0]) * (y - seg.from[1]) !== (seg.to[1] - seg.from[1]) * (x - seg.from[0])) return false;
+  return (x !== seg.from[0] || y !== seg.from[1]) && (x !== seg.to[0] || y !== seg.to[1]);
+}
+function latticeBetween(from, to) {
+  var steps = gcd(Math.abs(to[0] - from[0]), Math.abs(to[1] - from[1]));
+  var out = [];
+  for (var i = 1; i < steps; i++)
+    out.push([from[0] + ((to[0] - from[0]) / steps) * i, from[1] + ((to[1] - from[1]) / steps) * i]);
+  return out;
+}
+function crossingPoint(a, b) {
+  var ax = a.to[0] - a.from[0], ay = a.to[1] - a.from[1];
+  var bx = b.to[0] - b.from[0], by = b.to[1] - b.from[1];
+  var denom = cross(ax, ay, bx, by);
+  if (denom === 0) {
+    var shared = [a.from, a.to].find(function (p) {
+      return samePoint(p, b.from) || samePoint(p, b.to);
+    });
+    return [shared[0] * SCALE, shared[1] * SCALE];
+  }
+  var t = cross(b.from[0] - a.from[0], b.from[1] - a.from[1], bx, by) * (SCALE / denom);
+  return [a.from[0] * SCALE + ax * t, a.from[1] * SCALE + ay * t];
+}
+function buildGraph(segments) {
+  var parent = segments.map(function (_, i) { return i; });
+  function find(i) { return parent[i] === i ? i : (parent[i] = find(parent[i])); }
+  var stops = segments.map(function (seg) {
+    return [
+      [seg.from[0] * SCALE, seg.from[1] * SCALE],
+      [seg.to[0] * SCALE, seg.to[1] * SCALE],
+    ];
+  });
+  for (var r = 0; r < segments.length; r++) {
+    for (var s = r + 1; s < segments.length; s++) {
+      var kind = intersect(segments[r], segments[s]);
+      if (kind === 0) continue;
+      parent[find(s)] = find(r);
+      if (kind === 1) {
+        var point = crossingPoint(segments[r], segments[s]);
+        stops[r].push(point);
+        stops[s].push(point);
+      }
+    }
+  }
+  return { find: find, stops: stops };
+}
+function buildPlanar(segments, stops, find) {
+  var points = [], owner = [], neighbours = [], index = new Map();
+  function vertexAt(point, component) {
+    var key = point[0] + "," + point[1];
+    if (!index.has(key)) {
+      index.set(key, points.length);
+      points.push(point);
+      owner.push(component);
+      neighbours.push([]);
+    }
+    return index.get(key);
+  }
+  segments.forEach(function (seg, i) {
+    var dir = [seg.to[0] - seg.from[0], seg.to[1] - seg.from[1]];
+    var ordered = stops[i].slice().sort(function (a, b) {
+      return a[0] * dir[0] + a[1] * dir[1] - (b[0] * dir[0] + b[1] * dir[1]);
+    });
+    for (var k = 1; k < ordered.length; k++) {
+      if (samePoint(ordered[k - 1], ordered[k])) continue;
+      var from = vertexAt(ordered[k - 1], find(i));
+      var to = vertexAt(ordered[k], find(i));
+      neighbours[from].push(to);
+      neighbours[to].push(from);
+    }
+  });
+  neighbours.forEach(function (list, i) {
+    var origin = points[i];
+    list.sort(function (a, b) {
+      var pa = points[a], pb = points[b];
+      var sa = pa[0] - origin[0], ca = pa[1] - origin[1];
+      var sb = pb[0] - origin[0], cb = pb[1] - origin[1];
+      return half(sa, ca) - half(sb, cb) || cross(sb, cb, sa, ca);
+    });
+  });
+  function half(x, y) { return y < 0 || (y === 0 && x > 0) ? 0 : 1; }
+  return { points: points, owner: owner, neighbours: neighbours };
+}
+function signedArea2(poly) {
+  var big = 0n, acc = 0;
+  for (var i = 0; i < poly.length; i++) {
+    var a = poly[i], b = poly[(i + 1) % poly.length];
+    acc += a[0] * b[1] - b[0] * a[1];
+    if (Math.abs(acc) > 2 ** 52) { big += BigInt(acc); acc = 0; }
+  }
+  return Number(big + BigInt(acc));
+}
+function traceFaces(planar) {
+  var points = planar.points, owner = planar.owner, neighbours = planar.neighbours;
+  var byComponent = new Map();
+  var visited = neighbours.map(function (list) {
+    return list.map(function () { return false; });
+  });
+  for (var i = 0; i < points.length; i++) {
+    for (var j = 0; j < neighbours[i].length; j++) {
+      if (visited[i][j]) continue;
+      var cycle = [], at = i, edge = j;
+      while (!visited[at][edge]) {
+        visited[at][edge] = true;
+        cycle.push(points[at]);
+        var next = neighbours[at][edge];
+        edge = (neighbours[next].indexOf(at) - 1 + neighbours[next].length) % neighbours[next].length;
+        at = next;
+      }
+      var area = signedArea2(cycle);
+      if (area <= 0) continue;
+      if (!byComponent.has(owner[i])) byComponent.set(owner[i], { area: 0, cycles: [], probe: points[i] });
+      var group = byComponent.get(owner[i]);
+      group.area += area;
+      group.cycles.push(cycle);
+    }
+  }
+  return Array.from(byComponent.values());
+}
+function pointInPolygon(cycle, point) {
+  var inside = false;
+  for (var i = 0; i < cycle.length; i++) {
+    var a = cycle[i], b = cycle[(i + 1) % cycle.length];
+    if (a[1] > point[1] === b[1] > point[1]) continue;
+    var offset = cross(b[0] - a[0], b[1] - a[1], point[0] - a[0], point[1] - a[1]);
+    if (b[1] > a[1] ? offset > 0 : offset < 0) inside = !inside;
+  }
+  return inside;
+}
+var areaCache = new WeakMap();
+function areaOf(segments) {
+  var cached = areaCache.get(segments);
+  if (cached) return cached;
+  var graph = buildGraph(segments.map(normalize));
+  var faces = traceFaces(buildPlanar(segments, graph.stops, graph.find));
+  var outer = faces.filter(function (face) {
+    return !faces.some(function (other) {
+      return other !== face && other.cycles.some(function (cycle) {
+        return pointInPolygon(cycle, face.probe);
+      });
+    });
+  });
+  var result = {
+    area: outer.reduce(function (sum, face) { return sum + face.area; }, 0),
+    polygons: outer.flatMap(function (face) {
+      return face.cycles.map(function (cycle) {
+        return cycle.map(function (p) { return [p[0] / SCALE, p[1] / SCALE]; });
+      });
+    }),
+    raw: outer.flatMap(function (face) { return face.cycles; }),
+  };
+  areaCache.set(segments, result);
+  return result;
+}
+// Enclave rule (cfg.enclaves). Each player's area is traced from their own
+// fence alone, so a rival ring closed inside your outer ring already sits
+// inside YOUR area. With enclaves allowed (the default - the original site's
+// behaviour) that pocket also scores for its builder, so the ground under the
+// outer ring can score twice. With enclaves off the outermost ring claims
+// everything it surrounds: any of your rings that sits inside a rival's ring
+// scores 0 for you (the outer player's total is unchanged - it already
+// covered that ground).
+// Poison rule (cfg.poison, state.poison): any counted ring that contains a
+// poison spot - strictly inside OR merely touching the fence - is infected
+// and contributes NEGATIVE area for its owner (a +64 pen around one spot
+// becomes -64; two spots do not double it - the ring flips sign once).
+// Boost rule (cfg.boost, state.boost): a counted ring that contains a boost
+// spot - same inside-or-touching test - scores 1.5x its area per spot (two
+// spots -> 2.25x, rounded). Only positive rings benefit: holes and
+// poison-infected rings never get the multiplier (poison simply wins).
+function onSegment(a, b, p) {
+  return cross(b[0] - a[0], b[1] - a[1], p[0] - a[0], p[1] - a[1]) === 0 &&
+    p[0] >= Math.min(a[0], b[0]) && p[0] <= Math.max(a[0], b[0]) &&
+    p[1] >= Math.min(a[1], b[1]) && p[1] <= Math.max(a[1], b[1]);
+}
+function ringHasPoison(rawRing, poison) {
+  for (var i = 0; i < poison.length; i++) {
+    var pt = [poison[i][0] * SCALE, poison[i][1] * SCALE], j;
+    for (j = 0; j < rawRing.length; j++)
+      if (onSegment(rawRing[j], rawRing[(j + 1) % rawRing.length], pt)) return true;
+    if (pointInPolygon(rawRing, pt)) return true;
+  }
+  return false;
+}
+// number of spots of the list strictly inside the ring or touching its fence
+function ringSpotHits(rawRing, spots) {
+  var n = 0;
+  for (var i = 0; i < spots.length; i++) {
+    var pt = [spots[i][0] * SCALE, spots[i][1] * SCALE], j, hit = false;
+    for (j = 0; j < rawRing.length; j++)
+      if (onSegment(rawRing[j], rawRing[(j + 1) % rawRing.length], pt)) { hit = true; break; }
+    if (!hit && pointInPolygon(rawRing, pt)) hit = true;
+    if (hit) n++;
+  }
+  return n;
+}
+function scoreArea(segs, cfg, p, poison, boost) {
+  var a = areaOf(segs[p]);
+  if (!a.polygons.length) return a;
+  if (cfg.enclaves === false) {
+    var rivals = [], r, i, j;
+    for (r = 0; r < cfg.players; r++) {
+      if (r === p) continue;
+      var rp = areaOf(segs[r]);
+      if (rp.polygons.length) rivals.push(rp.polygons);
+    }
+    if (rivals.length) {
+      var keep = [], keepRaw = [], dropped = false;
+      for (i = 0; i < a.polygons.length; i++) {
+        var pt = a.polygons[i][0], inside = false;
+        // Rival fences never touch ours (any contact is a cut), so the rings are
+        // strictly nested or disjoint: any one vertex decides containment.
+        for (r = 0; r < rivals.length && !inside; r++)
+          for (j = 0; j < rivals[r].length && !inside; j++)
+            if (pointInPolygon(rivals[r][j], pt)) inside = true;
+        if (inside) dropped = true;
+        else { keep.push(a.polygons[i]); keepRaw.push(a.raw[i]); }
+      }
+      if (dropped) {
+        var ka = 0;
+        for (i = 0; i < keepRaw.length; i++) ka += signedArea2(keepRaw[i]);
+        a = { area: ka, polygons: keep, raw: keepRaw };
+      }
+    }
+  }
+  if ((poison && poison.length) || (boost && boost.length)) {
+    var area = 0;
+    for (var k = 0; k < a.raw.length; k++) {
+      var s2 = signedArea2(a.raw[k]);
+      if (poison && poison.length && ringHasPoison(a.raw[k], poison)) s2 = -s2;
+      else if (s2 > 0 && boost && boost.length) {
+        var nBoost = ringSpotHits(a.raw[k], boost);
+        if (nBoost) s2 = Math.round(s2 * Math.pow(1.5, nBoost));
+      }
+      area += s2;
+    }
+    return { area: area, polygons: a.polygons, raw: a.raw };
+  }
+  return a;
+}
+function nodeKey(point, size) { return point[0] * size + point[1]; }
+function keyToPos(key, size) { return [key % size, (key - (key % size)) / size]; }
+function nodeName(point) { return LETTERS[point[0]] + (point[1] + 1); }
+function parseNode(name) { return [LETTERS.indexOf(name[0]), Number(name.slice(1)) - 1]; }
+function nodesOf(segments, size) {
+  var map = new Map();
+  segments.forEach(function (seg) {
+    [seg.from, seg.to].forEach(function (p) { map.set(nodeKey(p, size), p); });
+  });
+  return Array.from(map).sort(function (a, b) { return a[0] - b[0]; }).map(function (e) { return e[1]; });
+}
+function makeSegment(from, to, born) {
+  var ordered = from[0] < to[0] || (from[0] === to[0] && from[1] < to[1]) ? [from, to] : [to, from];
+  return { from: ordered[0], to: ordered[1], born: born == null ? -1e9 : born };
+}
+// A stroke is invincible from the turn it is drawn through every rival's next
+// turn, i.e. until the start of the drawer's next turn.  (In 2 players this is
+// exactly the original rule: invincible until the end of the opponent's turn.)
+function isInvincible(seg, state) { return state.turnNo - seg.born < state.cfg.players; }
+// Playable-area mask: the lattice, coordinates and node names stay the
+// classic N x N grid - nodes outside the shape simply are not playable (no
+// dot, no legal target). All three shapes are convex, so every edge between
+// two in-shape nodes (and the lattice points along it) stays inside too.
+function inShape(x, y, cfg) {
+  var N = cfg.size, shape = cfg.shape || "square";
+  if (x < 0 || y < 0 || x >= N || y >= N) return false;
+  if (shape === "octagon") {
+    var cut = Math.max(2, Math.round(N / 4));
+    return x + y >= cut && x + (N - 1 - y) >= cut &&
+      (N - 1 - x) + y >= cut && (N - 1 - x) + (N - 1 - y) >= cut;
+  }
+  return true;
+}
+function reach(from, cfg) {
+  var out = [], R = cfg.radius, N = cfg.size;
+  for (var x = Math.max(0, from[0] - R); x <= Math.min(N - 1, from[0] + R); x++) {
+    for (var y = Math.max(0, from[1] - R); y <= Math.min(N - 1, from[1] + R); y++) {
+      if ((x !== from[0] || y !== from[1]) && inShape(x, y, cfg)) out.push([x, y]);
+    }
+  }
+  return out;
+}
+function legalMoves(state) {
+  if (state.actionsLeft <= 0) return ["pass"]; // seat has no actions left this turn
+  var cfg = state.cfg, size = cfg.size;
+  var mine = state.segments[state.turn].map(normalize);
+  var theirs = [];
+  for (var p = 0; p < cfg.players; p++)
+    if (p !== state.turn) theirs = theirs.concat(state.segments[p].map(normalize));
+  var nodes = nodesOf(state.segments[state.turn], size);
+  var posts = new Set(nodes.map(function (p) { return nodeKey(p, size); }));
+  var rocks = state.barriers && state.barriers.length
+    ? new Set(state.barriers.map(function (p) { return nodeKey(p, size); })) : null;
+  var out = [];
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i];
+    var box = { x0: node[0] - cfg.radius, x1: node[0] + cfg.radius, y0: node[1] - cfg.radius, y1: node[1] + cfg.radius };
+    var nearMine = mine.filter(function (seg) { return bboxOverlap(seg, box); });
+    var nearTheirs = theirs.filter(function (seg) { return bboxOverlap(seg, box); });
+    var targets = reach(node, cfg);
+    for (var j = 0; j < targets.length; j++) {
+      var target = targets[j];
+      var edge = normalize({ from: node, to: target });
+      if (nearMine.some(function (seg) { return strictlyInside(target, seg) || intersect(edge, seg) === 2; })) continue;
+      // no fence may hop your own posts - or end on / pass over a barrier rock
+      var between = latticeBetween(node, target);
+      if (between.some(function (p) {
+        var kk = nodeKey(p, size);
+        return posts.has(kk) || (rocks && rocks.has(kk));
+      })) continue;
+      if (rocks && rocks.has(nodeKey(target, size))) continue;
+      var cuts = nearTheirs.filter(function (seg) { return intersect(edge, seg) !== 0; });
+      if (cuts.length > 1) continue;
+      if (cuts.some(function (seg) { return isInvincible(seg, state); })) continue;
+      out.push(nodeName(node) + "-" + nodeName(target));
+    }
+  }
+  return out.length ? out : ["pass"];
+}
+function resultOf(scores) {
+  var max = Math.max.apply(null, scores);
+  var winners = [];
+  for (var i = 0; i < scores.length; i++) if (scores[i] === max) winners.push(i);
+  return winners.length === 1
+    ? { winner: winners[0], winners: winners, reason: "higher score" }
+    : { winner: null, winners: winners, reason: "equal scores" };
+}
+var DEFAULT_CFG = {
+  players: 2, size: 19, radius: 3, sticks: 1, actionsPerTurn: 2, maxActions: 120,
+  barriers: false, // variant: random blocked lattice nodes each match
+  enclaves: true,  // variant: false = the outermost ring claims everything it surrounds
+  poison: false,   // variant: random purple spots each match; a ring around one scores negative
+  boost: false,    // variant: random green spots each match; a ring around one scores 1.5x per spot
+};
+// Opening fences: every seat gets one spoke anchored on the playable
+// boundary (classic facing walls for 2 on square; hand-drawn wall/corner
+// anchors for 3-4; mirrored on octagon edges). See RULES.md.
+function startingSticks(cfg) {
+  // born = 0 treats each opening stick as drawn on turn 0, so it stays
+  // invincible (turnNo < players) through the whole first round: no seat can
+  // kill an opponent's opening stick before its owner has moved once.
+  // (The live site leaves its two sticks exposed from move one.)
+  //
+  // Every seat gets a straight spoke anchored ON the playable boundary,
+  // pointing inward, of length = radius. Square keeps the classic 2-player
+  // facing walls; 3 players take the two top corners + the bottom wall and
+  // 4 players one wall each (the hand-drawn anchors). Triangle is
+  // equilateral (~60° corners): 3 players get one spoke out of each corner;
+  // octagon mirrors the scheme on its own edges.
+  var N = cfg.size, R = cfg.radius, K = cfg.sticks, P = cfg.players;
+  var shape = cfg.shape || "square";
+  var mid = Math.floor((N - 1) / 2);
+  function clamp(p) {
+    return [Math.min(N - 1, Math.max(0, p[0])), Math.min(N - 1, Math.max(0, p[1]))];
+  }
+  function anchors() {
+    if (shape === "octagon") {
+      var cut = Math.max(2, Math.round(N / 4));
+      var tc = Math.max(0, Math.min(Math.ceil(cut / 2), mid - R - 1));
+      var TL = { a: [tc, tc + N - 1 - cut], d: [1, -1] };
+      var TR = { a: [N - 1 - tc, N - 1 + tc - cut], d: [-1, -1] };
+      var WallL = { a: [0, mid], d: [1, 0] }, WallR = { a: [N - 1, mid], d: [-1, 0] };
+      if (P === 2) return [WallL, WallR];
+      if (P === 3) return [{ a: [mid, 0], d: [0, 1] }, TR, TL];
+      return [{ a: [mid, 0], d: [0, 1] }, WallR, { a: [mid, N - 1], d: [0, -1] }, WallL];
+    }
+    // square: 2 classic walls; 3 = bottom wall + both top corners; 4 = walls
+    if (P === 2) return [{ a: [0, mid], d: [1, 0], t: [0, -1] },
+                         { a: [N - 1, mid], d: [-1, 0], t: [0, 1] }];
+    if (P === 3) return [{ a: [mid, 0], d: [0, 1] },
+                         { a: [N - 1, N - 1], d: [-1, -1] },
+                         { a: [0, N - 1], d: [1, -1] }];
+    return [{ a: [mid, 0], d: [0, 1] }, { a: [N - 1, mid], d: [-1, 0] },
+            { a: [mid, N - 1], d: [0, -1] }, { a: [0, mid], d: [1, 0] }];
+  }
+  var list = anchors(), out = [];
+  for (var p = 0; p < P; p++) {
+    out.push([]);
+    var an = list[p], t = an.t || [-an.d[1], an.d[0]];
+    for (var k = 0; k < K; k++) {
+      // extra sticks stack +-2 along the wall (classic 2-player behaviour)
+      var a = clamp([an.a[0] + t[0] * k * 2, an.a[1] + t[1] * k * 2]);
+      var b = clamp([a[0] + an.d[0] * R, a[1] + an.d[1] * R]);
+      out[p].push(makeSegment(a, b, 0));
+    }
+  }
+  return out;
+}
+// Playable lattice nodes for this shape - the scaling unit for the random
+// variants: smaller boards and the octagon's chamfered corners get fewer
+// barrier rocks / poison spots than a full square of the same N.
+function accessibleNodes(cfg) {
+  var N = cfg.size, n = 0;
+  for (var x = 0; x < N; x++) for (var y = 0; y < N; y++) if (inShape(x, y, cfg)) n++;
+  return n;
+}
+// Random blocked lattice nodes for the Barriers variant: 2-4 compact clusters
+// ("rocks") of 2-4 nodes, kept off the opening sticks (their nodes and the
+// lattice they span). No fence may end on or pass over a rock, but ground you
+// enclose around one counts normally - barriers never enter the geometry.
+// Budget: ~3% of the shape's accessible nodes (min 2).
+function makeBarriers(cfg, sticks) {
+  var N = cfg.size, banned = new Set(), i, j, t;
+  for (i = 0; i < sticks.length; i++) for (j = 0; j < sticks[i].length; j++) {
+    var s = sticks[i][j];
+    banned.add(nodeKey(s.from, N)); banned.add(nodeKey(s.to, N));
+    var mid = latticeBetween(s.from, s.to);
+    for (var m = 0; m < mid.length; m++) banned.add(nodeKey(mid[m], N));
+  }
+  var cap = Math.max(2, Math.round(accessibleNodes(cfg) * 0.03));
+  var out = [], clusters = 2 + Math.floor(Math.random() * 3);
+  for (var c = 0; c < clusters && out.length < cap; c++) {
+    var seed = null;
+    for (t = 0; t < 40 && !seed; t++) {
+      var sx = Math.floor(Math.random() * N), sy = Math.floor(Math.random() * N);
+      if (inShape(sx, sy, cfg) && !banned.has(nodeKey([sx, sy], N))) seed = [sx, sy];
+    }
+    if (!seed) continue;
+    var frontier = [seed], want = 2 + Math.floor(Math.random() * 3);
+    for (var g = 0; g < want && out.length < cap && frontier.length; g++) {
+      var n = frontier.splice(Math.floor(Math.random() * frontier.length), 1)[0];
+      var k = nodeKey(n, N);
+      if (banned.has(k)) continue;
+      banned.add(k); out.push(n);
+      var nb = [[n[0] + 1, n[1]], [n[0] - 1, n[1]], [n[0], n[1] + 1], [n[0], n[1] - 1]];
+      for (t = 0; t < 4; t++)
+        if (inShape(nb[t][0], nb[t][1], cfg) && !banned.has(nodeKey(nb[t], N)))
+          frontier.push(nb[t]);
+    }
+  }
+  return out;
+}
+// Random purple poison spots (variant): a handful of single lattice nodes,
+// kept off the opening sticks, barrier rocks and each other (never two
+// adjacent). Any ring that strictly contains a spot scores NEGATIVE for its
+// owner - a clean +64 pen around one spot becomes -64. Spots never block
+// fences. Count: ~1.4% of the shape's accessible nodes (2..6, +-1 random).
+function makePoison(cfg, sticks, rocks) {
+  var N = cfg.size, banned = new Set(), placed = new Set(), i, j;
+  for (i = 0; i < sticks.length; i++) for (j = 0; j < sticks[i].length; j++) {
+    var s = sticks[i][j];
+    banned.add(nodeKey(s.from, N)); banned.add(nodeKey(s.to, N));
+    var mid = latticeBetween(s.from, s.to);
+    for (var m = 0; m < mid.length; m++) banned.add(nodeKey(mid[m], N));
+  }
+  if (rocks) for (i = 0; i < rocks.length; i++) banned.add(nodeKey(rocks[i], N));
+  var out = [];
+  var want = Math.max(2, Math.min(6,
+    Math.round(accessibleNodes(cfg) * 0.014) + (Math.random() < 0.5 ? 0 : 1)));
+  for (var t = 0; t < 600 && out.length < want; t++) {
+    var x = Math.floor(Math.random() * N), y = Math.floor(Math.random() * N);
+    if (!inShape(x, y, cfg) || banned.has(nodeKey([x, y], N))) continue;
+    var nb = [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]], adj = false;
+    for (i = 0; i < 4; i++) if (placed.has(nodeKey(nb[i], N))) adj = true;
+    if (adj) continue;
+    banned.add(nodeKey([x, y], N)); placed.add(nodeKey([x, y], N));
+    out.push([x, y]);
+  }
+  return out;
+}
+// Random green boost spots (variant): same placement rules as poison (scaled
+// count, off the sticks/rocks/each other, never adjacent), also kept off the
+// poison spots. Any ring that contains a boost spot scores 150% per spot; a
+// poisoned or hole ring never benefits. Spots never block fences.
+function makeBoost(cfg, sticks, rocks, poisonSpots) {
+  var N = cfg.size, banned = new Set(), placed = new Set(), i, j;
+  for (i = 0; i < sticks.length; i++) for (j = 0; j < sticks[i].length; j++) {
+    var s = sticks[i][j];
+    banned.add(nodeKey(s.from, N)); banned.add(nodeKey(s.to, N));
+    var mid = latticeBetween(s.from, s.to);
+    for (var m = 0; m < mid.length; m++) banned.add(nodeKey(mid[m], N));
+  }
+  if (rocks) for (i = 0; i < rocks.length; i++) banned.add(nodeKey(rocks[i], N));
+  if (poisonSpots) for (i = 0; i < poisonSpots.length; i++) {
+    banned.add(nodeKey(poisonSpots[i], N)); placed.add(nodeKey(poisonSpots[i], N));
+  }
+  var out = [];
+  var want = Math.max(2, Math.min(6,
+    Math.round(accessibleNodes(cfg) * 0.014) + (Math.random() < 0.5 ? 0 : 1)));
+  for (var t = 0; t < 600 && out.length < want; t++) {
+    var x = Math.floor(Math.random() * N), y = Math.floor(Math.random() * N);
+    if (!inShape(x, y, cfg) || banned.has(nodeKey([x, y], N))) continue;
+    var nb = [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]], adj = false;
+    for (i = 0; i < 4; i++) if (placed.has(nodeKey(nb[i], N))) adj = true;
+    if (adj) continue;
+    banned.add(nodeKey([x, y], N)); placed.add(nodeKey([x, y], N));
+    out.push([x, y]);
+  }
+  return out;
+}
+function setup(cfg) {
+  var c = {};
+  for (var key in DEFAULT_CFG) c[key] = DEFAULT_CFG[key];
+  if (cfg) for (var key2 in cfg) c[key2] = cfg[key2];
+  var scores = [], takenBy = [];
+  for (var p = 0; p < c.players; p++) { scores.push(0); takenBy.push(0); }
+  var sticks = startingSticks(c);
+  var rocks = c.barriers ? makeBarriers(c, sticks) : null;
+  var poisonSpots = c.poison ? makePoison(c, sticks, rocks) : null;
+  return { cfg: c, turn: 0, actionsTaken: 0, actionsLeft: 1, turnNo: 0,
+    segments: sticks, barriers: rocks, poison: poisonSpots,
+    boost: c.boost ? makeBoost(c, sticks, rocks, poisonSpots) : null,
+    scores: scores, takenBy: takenBy };
+}
+// Game end. cfg.perPlayer: maxActions is each player's own edge cap and the
+// game runs until every seat has spent theirs. Without the flag maxActions is
+// one shared total for the whole table (the original site's classic rule).
+function gameOver(st) {
+  var c = st.cfg;
+  if (c.perPlayer) {
+    for (var i = 0; i < st.takenBy.length; i++) if (st.takenBy[i] < c.maxActions) return false;
+    return true;
+  }
+  return st.actionsTaken >= c.maxActions;
+}
+function observe(state, seat) {
+  var cfg = state.cfg;
+  var over = gameOver(state);
+  return {
+    moves: !over && (seat === state.turn || seat === "global") ? legalMoves(state) : [],
+    result: over ? resultOf(state.scores) : null,
+    turn: over ? null : state.turn,
+    actionsTaken: state.actionsTaken,
+    actionsLeft: state.actionsLeft,
+    segments: state.segments,
+    nodes: state.segments.map(function (list) { return nodesOf(list, cfg.size); }),
+    areas: state.segments.map(function (list, p) { return scoreArea(state.segments, cfg, p, state.poison, state.boost).area / AREA_UNIT; }),
+    scores: state.scores.map(function (s) { return s / AREA_UNIT; }),
+  };
+}
+function play(state, move) {
+  var cfg = state.cfg, P = cfg.players, turn = state.turn;
+  var taken = state.actionsTaken, left = state.actionsLeft, turnNo = state.turnNo;
+  var segs = state.segments.slice();
+  var by = state.takenBy.slice();
+  if (move === "pass") { taken += left; by[turn] += left; left = 0; }
+  else {
+    var ends = move.split("-").map(parseNode);
+    var edge = makeSegment(ends[0], ends[1], turnNo);
+    var norm = normalize(edge);
+    segs[turn] = segs[turn].concat([edge]);
+    for (var p = 0; p < P; p++) {
+      if (p === turn) continue;
+      var hit = -1;
+      for (var k = 0; k < segs[p].length; k++)
+        if (intersect(norm, normalize(segs[p][k])) !== 0) { hit = k; break; }
+      if (hit >= 0) { segs[p] = segs[p].slice(0, hit).concat(segs[p].slice(hit + 1)); break; }
+    }
+    taken += 1;
+    by[turn] += 1;
+    left -= 1;
+  }
+  if (left > 0)
+    return { cfg: cfg, turn: turn, actionsTaken: taken, actionsLeft: left, turnNo: turnNo, segments: segs, barriers: state.barriers, poison: state.poison, boost: state.boost, scores: state.scores, takenBy: by };
+  // turn over: everyone banks their whole live area (enclave/poison/boost-
+  // adjusted); the banked total is floored at 0 - a poisoned pen can eat back
+  // into what you already hold but never below zero
+  var scores = state.scores.map(function (score, p) {
+    return Math.max(0, score + scoreArea(segs, cfg, p, state.poison, state.boost).area);
+  });
+  var next = (turn + 1) % P;
+  var nextLeft = cfg.perPlayer
+    ? Math.min(cfg.actionsPerTurn, cfg.maxActions - by[next])
+    : Math.min(cfg.actionsPerTurn, cfg.maxActions - taken);
+  return {
+    cfg: cfg, turn: next, actionsTaken: taken,
+    actionsLeft: nextLeft,
+    turnNo: turnNo + 1, segments: segs, barriers: state.barriers, poison: state.poison, boost: state.boost, scores: scores, takenBy: by,
+  };
+}
+var EncloseEngine = {
+  setup: setup, observe: observe, play: play, legalMoves: legalMoves,
+  areaOf: areaOf, nodesOf: nodesOf, normalize: normalize, intersect: intersect,
+  nodeName: nodeName, parseNode: parseNode, makeSegment: makeSegment,
+  nodeKey: nodeKey, keyToPos: keyToPos, isInvincible: isInvincible,
+  inShape: inShape,
+  scoreArea: scoreArea,
+  startingSticks: startingSticks, resultOf: resultOf, gameOver: gameOver,
+  AREA_UNIT: AREA_UNIT, SCALE: SCALE, LETTERS: LETTERS,
+};
+/* __ENGINE_END__ */
+/* ================= AI ================= */
+var INF = Infinity;
+var AI_LEVELS = {
+  easy: { maxDepth: 2, noise: 15, timeMs: 300, rootBeam: 12, beam: 4, bankWeight: 1 },
+  normal: { maxDepth: 3, timeMs: 900, rootBeam: 32, beam: 8, bankWeight: 1 },
+  hard: { maxDepth: 6, timeMs: 1800, rootBeam: 32, beam: 8, bankWeight: 1 },
+  hint: { maxDepth: 3, timeMs: 600, rootBeam: 24, beam: 6, bankWeight: 1 },
+  eval: { maxDepth: 2, timeMs: 150, rootBeam: 16, beam: 4, bankWeight: 1 },
+};
+// Everyone banks their live area at every turn end, so a live-area lead is
+// worth one harvest per turn still to be played (both seats' turns count).
+function aiTurnOversLeft(state) {
+  var cfg = state.cfg, t = 0, i;
+  if (cfg.perPlayer) {
+    for (i = 0; i < cfg.players; i++)
+      t += Math.ceil(Math.max(0, cfg.maxActions - state.takenBy[i]) / cfg.actionsPerTurn);
+  } else {
+    t = Math.ceil(Math.max(0, cfg.maxActions - state.actionsTaken) / cfg.actionsPerTurn);
+  }
+  return t;
+}
+// Position score from `me`'s point of view: banked lead over the average rival
+// + live area lead x remaining turn-overs.
+function aiEvaluate(state, me, bankWeight) {
+  var cfg = state.cfg, P = cfg.players, their = 0, my, i;
+  for (i = 0; i < P; i++) if (i !== me) their += state.scores[i];
+  my = state.scores[me];
+  var diff = (my - their / (P - 1)) / AREA_UNIT;
+  if (gameOver(state)) return diff;
+  var myA = scoreArea(state.segments, cfg, me, state.poison, state.boost).area, theirA = 0;
+  for (i = 0; i < P; i++) if (i !== me) theirA += scoreArea(state.segments, cfg, i, state.poison, state.boost).area;
+  return diff + ((myA - theirA / (P - 1)) / AREA_UNIT) * aiTurnOversLeft(state) * bankWeight;
+}
+function aiParseMove(move) {
+  if (move === "pass") return null;
+  var ends = move.split("-");
+  return [parseNode(ends[0]), parseNode(ends[1])];
+}
+// True when the new edge would close a cycle inside a pen you already own,
+// in which case it encloses nothing extra.
+function aiInsideOwnPen(state, me, ends) {
+  var polys = areaOf(state.segments[me]).polygons;
+  if (!polys.length) return false;
+  for (var i = 0; i < polys.length; i++)
+    if (pointInPolygon(polys[i], ends[0]) && pointInPolygon(polys[i], ends[1])) return true;
+  return false;
+}
+function aiComponentsOf(segments, size) {
+  var parent = segments.map(function (_, i) { return i; });
+  function find(i) { return parent[i] === i ? i : (parent[i] = find(parent[i])); }
+  var flat = new Float64Array(segments.length * 4);
+  segments.forEach(function (seg, i) {
+    var o = i * 4;
+    flat[o] = Math.min(seg.from[0], seg.to[0]);
+    flat[o + 1] = Math.max(seg.from[0], seg.to[0]);
+    flat[o + 2] = Math.min(seg.from[1], seg.to[1]);
+    flat[o + 3] = Math.max(seg.from[1], seg.to[1]);
+  });
+  var norm = segments.map(normalize);
+  for (var i = 0; i < segments.length; i++) {
+    var oi = i * 4;
+    for (var j = i + 1; j < segments.length; j++) {
+      var oj = j * 4;
+      if (flat[oi] > flat[oj + 1] || flat[oj] > flat[oi + 1]) continue;
+      if (flat[oi + 2] > flat[oj + 3] || flat[oj + 2] > flat[oi + 3]) continue;
+      if (intersect(norm[i], norm[j]) !== 0) parent[find(j)] = find(i);
+    }
+  }
+  var comp = new Map();
+  segments.forEach(function (seg, i) {
+    var c = find(i);
+    [seg.from, seg.to].forEach(function (p) { comp.set(nodeKey(p, size), c); });
+  });
+  return comp;
+}
+function aiFenceGraph(segments, size) {
+  var adj = new Map();
+  segments.forEach(function (seg, i) {
+    var a = nodeKey(seg.from, size), b = nodeKey(seg.to, size);
+    if (!adj.has(a)) adj.set(a, []);
+    if (!adj.has(b)) adj.set(b, []);
+    adj.get(a).push({ to: b, seg: i });
+    adj.get(b).push({ to: a, seg: i });
+  });
+  return adj;
+}
+function aiFencePath(adj, from, to, skip) {
+  if (from === to) return [from];
+  var prev = new Map();
+  prev.set(from, -1);
+  var queue = [from];
+  for (var head = 0; head < queue.length; head++) {
+    var cur = queue[head], edges = adj.get(cur);
+    if (!edges) continue;
+    for (var i = 0; i < edges.length; i++) {
+      var e = edges[i];
+      if (e.seg === skip || prev.has(e.to)) continue;
+      prev.set(e.to, cur);
+      queue.push(e.to);
+      if (e.to === to) {
+        var path = [to], at = to;
+        while (at !== from) { at = prev.get(at); path.push(at); }
+        return path;
+      }
+    }
+  }
+  return null;
+}
+function aiShoelace(path, size) {
+  var sum = 0;
+  for (var i = 0; i < path.length; i++) {
+    var a = keyToPos(path[i], size), b = keyToPos(path[(i + 1) % path.length], size);
+    sum += a[0] * b[1] - b[0] * a[1];
+  }
+  return Math.abs(sum) / 2;
+}
+// Order legal moves by the exact area swing they create, WITHOUT playing
+// them: a cut is scored with the area that fence was holding (shoelace of
+// the path around it), a close with the new cycle's area, anything else 0.
+// Cheap enough to run at every search node (this is what makes real depth
+// fit inside the time budget).
+function aiRankChildren(state, moves) {
+  var cfg = state.cfg, size = cfg.size, P = cfg.players, me = state.turn;
+  var myArea = scoreArea(state.segments, cfg, me, state.poison, state.boost).area;
+  var theirTotal = 0, rivals = [], q, i;
+  for (q = 0; q < P; q++) if (q !== me) theirTotal += scoreArea(state.segments, cfg, q, state.poison, state.boost).area;
+  for (q = 0; q < P; q++) if (q !== me) {
+    var segs = state.segments[q];
+    var adj = aiFenceGraph(segs, size);
+    var norms = [], boxes = [], vals = [];
+    for (i = 0; i < segs.length; i++) {
+      var n = normalize(segs[i]);
+      norms.push(n);
+      boxes.push([n.x0, n.x1, n.y0, n.y1]);
+      var bp = aiFencePath(adj, nodeKey(segs[i].from, size), nodeKey(segs[i].to, size), i);
+      vals.push(bp ? aiShoelace(bp, size) : 0);
+    }
+    rivals.push({ norms: norms, boxes: boxes, cutValues: vals });
+  }
+  var myAdj = aiFenceGraph(state.segments[me], size);
+  var comps = aiComponentsOf(state.segments[me], size);
+  var myNodes = new Set();
+  state.segments[me].forEach(function (s) {
+    myNodes.add(nodeKey(s.from, size)); myNodes.add(nodeKey(s.to, size));
+  });
+  var left = state.actionsLeft;
+  var out = [];
+  for (var m = 0; m < moves.length; m++) {
+    var move = moves[m];
+    var endsTurn = move === "pass" || left <= 1;
+    var my2 = myArea, cutGain = 0, struct = -1;
+    if (move !== "pass") {
+      var ends = aiParseMove(move);
+      struct = (myNodes.has(nodeKey(ends[0], size)) ? 1 : 0) + (myNodes.has(nodeKey(ends[1], size)) ? 1 : 0);
+      var edge = normalize({ from: ends[0], to: ends[1] });
+      for (var r = 0; r < rivals.length && !cutGain; r++) {
+        var rv = rivals[r];
+        for (i = 0; i < rv.norms.length; i++) {
+          var b = rv.boxes[i];
+          if (edge.x0 > b[1] || b[0] > edge.x1 || edge.y0 > b[3] || b[2] > edge.y1) continue;
+          if (intersect(edge, rv.norms[i]) !== 0) { cutGain = rv.cutValues[i]; break; }
+        }
+      }
+      var k0 = nodeKey(ends[0], size), k1 = nodeKey(ends[1], size);
+      if (comps.has(k0) && comps.has(k1) && comps.get(k0) === comps.get(k1)) {
+        var cl = aiFencePath(myAdj, k0, k1, -1);
+        var closed = cl ? aiShoelace(cl, size) : 0;
+        if (closed > 0 && !aiInsideOwnPen(state, me, ends)) my2 = myArea + closed;
+      }
+    }
+    var gain = (my2 - myArea + cutGain) / AREA_UNIT;
+    if (endsTurn) gain += (my2 - (theirTotal - cutGain) / (P - 1)) / AREA_UNIT;
+    out.push({ move: move, gain: gain, struct: struct, value: gain });
+  }
+  // Exact tactical gain first; among the many gain-0 quiet moves prefer edges
+  // that touch your own fence (building toward future closures).
+  out.sort(function (a, b) { return (b.gain - a.gain) || (b.struct - a.struct); });
+  return out;
+}
+function aiSearchNode(ctx, state, depth, alpha, beta) {
+  if (ctx.nodes++ % 128 === 0 && Date.now() - ctx.startedAt > ctx.timeMs) ctx.abort = true;
+  if (ctx.abort) return 0;
+  if (gameOver(state) || depth <= 0) {
+    ctx.evals++;
+    return aiEvaluate(state, ctx.me, ctx.bankWeight);
+  }
+  var moves = legalMoves(state);
+  var ranked = aiRankChildren(state, moves);
+  var maxing = state.turn === ctx.me;
+  var beam = Math.min(ctx.beam, ranked.length);
+  var best = maxing ? -INF : INF;
+  for (var i = 0; i < beam; i++) {
+    var value = aiSearchNode(ctx, play(state, ranked[i].move), depth - 1, alpha, beta);
+    if (ctx.abort) return 0;
+    if (maxing) {
+      if (value > best) best = value;
+      if (best > alpha) alpha = best;
+    } else {
+      if (value < best) best = value;
+      if (best < beta) beta = best;
+    }
+    if (beta <= alpha) break;
+  }
+  if (best === -INF || best === INF) best = aiEvaluate(state, ctx.me, ctx.bankWeight);
+  return best;
+}
+// The gain ranking is exact about tactics (a close or a cut) but buries the
+// quiet structural moves that often matter more.  The root therefore takes
+// the best half of the ranking plus an even spread of the rest.
+function aiDiverseRoot(ranked, count) {
+  if (ranked.length <= count) return ranked;
+  var head = Math.max(1, Math.ceil(count * 0.5));
+  var out = ranked.slice(0, head);
+  var room = count - out.length;
+  var step = Math.max(1, Math.floor((ranked.length - head) / Math.max(1, room)));
+  for (var i = head; i < ranked.length && out.length < count; i += step) out.push(ranked[i]);
+  return out;
+}
+// Iterative deepening: only a COMPLETE depth counts, so an aborted search
+// can never leave us with a half-explored move list.
+function chooseMove(state, me, opts) {
+  opts = opts || {};
+  var level = AI_LEVELS[opts.level || "normal"] || AI_LEVELS.normal;
+  var startedAt = Date.now();
+  var ctx = {
+    me: me, startedAt: startedAt, timeMs: opts.timeMs || level.timeMs,
+    noise: opts.noise != null ? opts.noise : level.noise || 0,
+    bankWeight: opts.bankWeight != null ? opts.bankWeight : level.bankWeight,
+    rootBeam: opts.rootBeam || level.rootBeam, beam: opts.beam || level.beam,
+    nodes: 0, evals: 0, abort: false,
+  };
+  var moves = legalMoves(state);
+  if (moves.length === 1) return moves[0];
+  var ranked = aiRankChildren(state, moves);
+  if (ctx.noise && ranked.length > 1) {
+    // Easy level: ignore the clearly better moves and think about the rest
+    for (var s = ranked.length - 1; s > 0; s--) {
+      if (ranked[s].gain < ranked[0].gain - ctx.noise) { ranked.splice(s, 1); continue; }
+      var j = Math.floor(Math.random() * (s + 1));
+      var tmp = ranked[s]; ranked[s] = ranked[j]; ranked[j] = tmp;
+    }
+  }
+  var pool = aiDiverseRoot(ranked, Math.min(ctx.rootBeam, ranked.length));
+  var maxing = state.turn === me;
+  var best = pool.length ? pool[0].move : moves[0];
+  var bestValue = pool.length ? pool[0].gain : 0;
+  var completed = 1;
+  var maxDepth = Math.min(level.maxDepth, opts.maxDepth || level.maxDepth);
+  for (var depth = 2; depth <= maxDepth; depth++) {
+    ctx.abort = false; ctx.nodes = 0;
+    var alpha = -INF, beta = INF;
+    var iterBest = null, iterValue = maxing ? -INF : INF;
+    var vals = new Array(pool.length);
+    for (var i = 0; i < pool.length; i++) {
+      var value = aiSearchNode(ctx, play(state, pool[i].move), depth - 1, alpha, beta);
+      if (ctx.abort) break;
+      vals[i] = value;
+      if (ctx.noise) value += (Math.random() - 0.5) * ctx.noise;
+      if (maxing ? value > iterValue : value < iterValue) { iterValue = value; iterBest = pool[i].move; }
+      if (!ctx.noise) {
+        if (maxing && iterValue > alpha) alpha = iterValue;
+        if (!maxing && iterValue < beta) beta = iterValue;
+      }
+      if (Date.now() - startedAt > ctx.timeMs) { ctx.abort = true; break; }
+    }
+    if (ctx.abort || iterBest === null) break;
+    completed = depth; best = iterBest; bestValue = iterValue;
+    // Next iteration: search the root pool best-first (values from this one).
+    if (!ctx.noise) {
+      pool = pool.map(function (p, j) { return { p: p, v: vals[j] }; })
+        .sort(function (a, b) { return maxing ? b.v - a.v : a.v - b.v; })
+        .map(function (o) { return o.p; });
+    }
+    if (Date.now() - startedAt > ctx.timeMs * 0.55) break;
+  }
+  if (opts.debug) return { move: best, score: bestValue, depth: completed, nodes: ctx.nodes, evals: ctx.evals, ms: Date.now() - startedAt };
+  return best;
+}
+var EncloseAI = { chooseMove: chooseMove, evaluate: aiEvaluate, LEVELS: AI_LEVELS };
+/* __AI_END__ */
+/* ================= APP (render + interaction) ================= */
+var CELL = 36, MARGIN = 54;
+var svg = document.getElementById("board");
+var banner = document.getElementById("banner");
+var logEl = document.getElementById("log");
+var state = null;
+var hist = [], selected = null, hotTarget = null, hintEdge = null, lastEdge = null;
+var dragging = false, aiTimer = null, aiBusy = false, over = false;
+var audioCtx = null;
+var muted = false;
+var THEME_KEY = "encloseTheme", OPTS_KEY = "encloseOptions";
+
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+function pos(p) { var N = state.cfg.size; return [p[0] * CELL, (N - 1 - p[1]) * CELL]; }
+function say(text, cls) { banner.textContent = text; banner.className = cls || ""; }
+function fmt(n) { return (Math.round(n * 10) / 10).toString(); }
+// per-player edge allowance: 40..100, default depends on the table size
+function edgesDefault(P) { return P >= 4 ? 90 : P === 3 ? 80 : 60; }
+function normEdges(v, P) {
+  if (!isFinite(v)) return edgesDefault(P || 2);
+  v = Math.round(v / 10) * 10;
+  return Math.min(100, Math.max(40, v));
+}
+var edgesTouched = false; // true once the player has picked a value themselves
+function cfgFromUi() {
+  var P = +document.getElementById("players").value;
+  var each = normEdges(+document.getElementById("maxedges").value, P); // edges per player
+  return {
+    players: P,
+    size: +document.getElementById("size").value,
+    radius: +document.getElementById("radius").value,
+    shape: document.getElementById("shape").value || "square",
+    sticks: 1, // always a single opening stick per seat
+    actionsPerTurn: +document.getElementById("perturn").value,
+    maxActions: each,
+    perPlayer: true,
+    barriers: document.getElementById("barriers").checked,
+    enclaves: document.getElementById("enclaves").checked,
+    poison: document.getElementById("poison").checked,
+    boost: document.getElementById("boost").checked,
+  };
+}
+var seatPlan = []; // per seat: "human" | "easy" | "normal" | "hard"
+function ensureSeatPlan(P) {
+  var fresh = seatPlan.length === 0;
+  while (seatPlan.length < P) seatPlan.push("human");
+  seatPlan.length = P;
+  if (fresh && P > 1) seatPlan[1] = "normal";
+}
+// the Choose players fold panel: one select per seat, applied on change
+function renderSeatRows() {
+  var P = +document.getElementById("players").value;
+  ensureSeatPlan(P);
+  var opts = ['<option value="human">Human</option>',
+    '<option value="easy">AI &middot; Easy</option>',
+    '<option value="normal">AI &middot; Normal</option>',
+    '<option value="hard">AI &middot; Hard</option>'].join("");
+  var rows = [];
+  for (var i = 0; i < P; i++)
+    rows.push('<div class="seatline"><span class="pdot p' + i + '"></span>' +
+      '<span class="sname">Seat ' + (i + 1) + (i === 0 ? " (First)" : "") + "</span>" +
+      '<select data-seat="' + i + '">' + opts + "</select></div>");
+  document.getElementById("seatRows").innerHTML = rows.join("");
+  var sels = document.querySelectorAll("#seatRows select");
+  for (i = 0; i < sels.length; i++) sels[i].value = seatPlan[i];
+}
+function aiSeats() {
+  var P = state.cfg.players, s = new Set();
+  ensureSeatPlan(P);
+  for (var i = 0; i < P; i++) if (seatPlan[i] !== "human") s.add(i);
+  return s;
+}
+function seatLevel(seat) { var v = seatPlan[seat]; return v === "human" ? "normal" : v; }
+function isHuman(seat) { return !aiSeats().has(seat); }
+function humanSeat() {
+  var seats = aiSeats();
+  for (var i = 0; i < state.cfg.players; i++) if (!seats.has(i)) return i;
+  return -1;
+}
+function humanCount() { return state.cfg.players - aiSeats().size; }
+function pname(i) {
+  var seats = aiSeats();
+  if (seats.size === 0) return "Seat " + (i + 1);
+  if (seats.has(i)) { var lv = seatLevel(i); return "AI " + (i + 1) + " (" + lv.charAt(0).toUpperCase() + lv.slice(1) + ")"; }
+  return humanCount() === 1 ? "You" : "Seat " + (i + 1);
+}
+function confetti() {
+  if (muted) return;
+  var box = document.getElementById("confettiBox");
+  var colors = ["#0e7490", "#b45309", "#7c3aed", "#be123c"];
+  for (var i = 0; i < 60; i++) {
+    var d = document.createElement("div");
+    d.className = "conf";
+    d.style.left = Math.random() * 100 + "vw";
+    d.style.background = colors[i % colors.length];
+    d.style.animationDuration = 1.4 + Math.random() * 1.4 + "s";
+    d.style.animationDelay = Math.random() * 0.4 + "s";
+    box.appendChild(d);
+    setTimeout((function (el) { return function () { el.remove(); }; })(d), 3200);
+  }
+}
+function blip(kind) {
+  if (muted) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain(), t = audioCtx.currentTime;
+    o.type = "sine";
+    o.frequency.setValueAtTime(kind === "cut" ? 220 : kind === "over" ? 523 : 392, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.08, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + 0.14);
+  } catch (e) {}
+}
+// which player's fence stands on this lattice node (endpoint or passing
+// over); at most one, since rival fences touching each other get cut
+function spotHolder(spot, segments) {
+  for (var i = 0; i < segments.length; i++)
+    for (var j = 0; j < segments[i].length; j++)
+      if (onSegment(segments[i][j].from, segments[i][j].to, spot)) return i;
+  return -1;
+}
+function render() {
+  var cfg = state.cfg, N = cfg.size, P = cfg.players, span = (N - 1) * CELL, S = span + MARGIN * 2;
+  var parts = ['<rect class="bg" x="' + -MARGIN + '" y="' + -MARGIN + '" width="' + S + '" height="' + S + '"/>'];
+  var L = EncloseEngine.LETTERS;
+  for (var x = 0; x < N; x++)
+    parts.push('<text class="coord" x="' + (x * CELL) + '" y="' + (-20) + '" text-anchor="middle">' + L[x] + "</text>");
+  for (var y = 0; y < N; y++)
+    parts.push('<text class="coord" x="' + (-24) + '" y="' + ((N - 1 - y) * CELL + 4) + '" text-anchor="end">' + (y + 1) + "</text>");
+  var shp = cfg.shape || "square";
+  if (shp === "octagon") {
+    var ct = Math.max(2, Math.round(N / 4));
+    var vs2 = [[ct, 0], [N - 1 - ct, 0], [N - 1, ct], [N - 1, N - 1 - ct],
+               [N - 1 - ct, N - 1], [ct, N - 1], [0, N - 1 - ct], [0, ct]];
+    parts.push('<polygon class="playarea" points="' + vs2.map(function (v) {
+      var q = pos(v); return q[0] + "," + q[1];
+    }).join(" ") + '"/>');
+  }
+  var rocks = state.barriers && state.barriers.length
+    ? new Set(state.barriers.map(function (p) { return EncloseEngine.nodeKey(p, N); })) : null;
+  for (x = 0; x < N; x++) for (y = 0; y < N; y++)
+    if (EncloseEngine.inShape(x, y, cfg)) {
+      var cy = (N - 1 - y) * CELL;
+      if (rocks && rocks.has(EncloseEngine.nodeKey([x, y], N))) {
+        var cx = x * CELL;
+        parts.push('<circle class="barrier" cx="' + cx + '" cy="' + cy + '" r="4.5"/>');
+      } else
+        parts.push('<circle class="dot" cx="' + (x * CELL) + '" cy="' + cy + '" r="2"/>');
+    }
+  if (lastEdge) {
+    var la = pos(lastEdge[0]), lb = pos(lastEdge[1]);
+    parts.push('<line class="last" x1="' + la[0] + '" y1="' + la[1] + '" x2="' + lb[0] + '" y2="' + lb[1] + '"/>');
+  }
+  for (var i = 0; i < P; i++) {
+    var sa = scoreArea(state.segments, cfg, i, state.poison, state.boost);
+    for (var k = 0; k < sa.polygons.length; k++) {
+      var pts = [];
+      for (var j = 0; j < sa.polygons[k].length; j++) { var q = pos(sa.polygons[k][j]); pts.push(q[0] + "," + q[1]); }
+      parts.push('<polygon class="fill' + i + '" points="' + pts.join(" ") + '"/>');
+      // shade the pen toward its spots: purple when infected (poison trumps),
+      // green when boosted
+      if (state.poison && state.poison.length && ringHasPoison(sa.raw[k], state.poison))
+        parts.push('<polygon class="poisonTint" points="' + pts.join(" ") + '"/>');
+      else if (state.boost && state.boost.length && ringSpotHits(sa.raw[k], state.boost) > 0)
+        parts.push('<polygon class="boostTint" points="' + pts.join(" ") + '"/>');
+    }
+  }
+  for (i = 0; i < P; i++) {
+    for (k = 0; k < state.segments[i].length; k++) {
+      var s = state.segments[i][k], a = pos(s.from), b = pos(s.to);
+      var cls = "edge p" + i + (EncloseEngine.isInvincible(s, state) ? " inv" : "");
+      parts.push('<line class="' + cls + '" x1="' + a[0] + '" y1="' + a[1] + '" x2="' + b[0] + '" y2="' + b[1] + '"/>');
+    }
+    var nodes = nodesOf(state.segments[i], N);
+    for (k = 0; k < nodes.length; k++) {
+      var p = pos(nodes[k]);
+      parts.push('<circle class="post p' + i + '" cx="' + p[0] + '" cy="' + p[1] + '" r="5.5"/>');
+    }
+  }
+  // spots draw above fences/posts so a fence stepping on one never hides it:
+  // the fill keeps its poison/boost colour, the ring takes the holder's colour
+  var allSpots = [];
+  if (state.poison && state.poison.length)
+    for (k = 0; k < state.poison.length; k++) allSpots.push(["poison", state.poison[k]]);
+  if (state.boost && state.boost.length)
+    for (k = 0; k < state.boost.length; k++) allSpots.push(["boost", state.boost[k]]);
+  for (k = 0; k < allSpots.length; k++) {
+    var kind = allSpots[k][0], sp = allSpots[k][1], spPos = pos(sp);
+    var hold = spotHolder(sp, state.segments);
+    parts.push('<circle class="' + kind + (hold >= 0 ? " holder" + hold : "") +
+      '" cx="' + spPos[0] + '" cy="' + spPos[1] + '" r="4.5"/>');
+  }
+  var mine = nodesOf(state.segments[state.turn] || [], N);
+  var moves = over ? [] : EncloseEngine.legalMoves(state);
+  var canDraw = moves.length > 0 && moves[0] !== "pass";
+  if (!over && !aiBusy && isHuman(state.turn) && canDraw)
+    for (k = 0; k < mine.length; k++) {
+      var hp = pos(mine[k]);
+      parts.push('<circle class="hitpost" data-node="' + EncloseEngine.nodeName(mine[k]) + '" cx="' + hp[0] + '" cy="' + hp[1] + '" r="14"/>');
+    }
+  if (selected) {
+    var sp = pos(selected);
+    parts.push('<rect class="band" x="' + (sp[0] - cfg.radius * CELL) + '" y="' + (sp[1] - cfg.radius * CELL) + '" width="' + (cfg.radius * 2 * CELL) + '" height="' + (cfg.radius * 2 * CELL) + '" rx="8"/>');
+    parts.push('<circle class="selring" cx="' + sp[0] + '" cy="' + sp[1] + '" r="9"/>');
+    var skey = EncloseEngine.nodeName(selected);
+    for (k = 0; k < moves.length; k++) {
+      var ends = moves[k].split("-");
+      if (ends[0] !== skey) continue;
+      var tp = pos(EncloseEngine.parseNode(ends[1]));
+      parts.push('<circle class="target' + (hotTarget === ends[1] ? " hot" : "") + '" data-target="' + ends[1] + '" cx="' + tp[0] + '" cy="' + tp[1] + '" r="7"/>');
+    }
+  }
+  if (hintEdge) {
+    var ha = pos(hintEdge[0]), hb = pos(hintEdge[1]);
+    parts.push('<line class="hintline" x1="' + ha[0] + '" y1="' + ha[1] + '" x2="' + hb[0] + '" y2="' + hb[1] + '"/>');
+    parts.push('<circle class="hintring" cx="' + ha[0] + '" cy="' + ha[1] + '" r="11"/>');
+    parts.push('<circle class="hintring" cx="' + hb[0] + '" cy="' + hb[1] + '" r="11"/>');
+  }
+  svg.setAttribute("viewBox", -MARGIN + " " + -MARGIN + " " + S + " " + S);
+  svg.innerHTML = parts.join("");
+  renderSide();
+}
+function renderSide() {
+  var cfg = state.cfg, P = cfg.players;
+  var head;
+  if (over) {
+    var res = observe(state, "global").result;
+    head = res.winners.map(pname).join(" & ") + (res.winners.length > 1 ? " draw" : " win");
+  } else if (isHuman(state.turn) && humanCount() < cfg.players) {
+    head = (humanCount() === 1 ? "Your" : pname(state.turn) + "'s") + " move (turn " + (state.turnNo + 1) + ").";
+  } else head = pname(state.turn) + " to move (turn " + (state.turnNo + 1) + ").";
+  document.getElementById("turnHead").textContent = head;
+  var rows = [];
+  for (var i = 0; i < P; i++) {
+    var bank = state.scores[i] / AREA_UNIT, live = scoreArea(state.segments, cfg, i, state.poison, state.boost).area / AREA_UNIT;
+    rows.push('<div class="prow' + (i === state.turn && !over ? " me" : "") + '"><span class="pdot p' + i + '"></span>' +
+      '<span class="pname">' + esc(pname(i)) + "</span>" +
+      '<span class="pbank">' + fmt(bank) + "</span>" +
+      '<span class="plive">' + (live >= 0 ? "+" : "") + fmt(live) + "</span></div>");
+  }
+  document.getElementById("scores").innerHTML = rows.join("");
+  document.getElementById("meterLabel").textContent =
+    state.actionsTaken + " of " + (cfg.maxActions * cfg.players) + " edges (" + cfg.maxActions + " each)";
+  var pips = "";
+  for (i = 0; i < cfg.actionsPerTurn; i++) pips += i < state.actionsLeft ? "●" : "○";
+  document.getElementById("ticks").textContent = pips;
+  document.getElementById("undo").disabled = hist.length === 0;
+  var showEval = document.getElementById("showbar").checked;
+  document.getElementById("evalCol").style.visibility = showEval ? "visible" : "hidden";
+  if (showEval) {
+    // every seat's share of everything it holds (banked + still live),
+    // stacked into one bar: 20% / 30% / 25% / 25% for four players, etc.
+    // the projection is floored at 0 like the score itself, so shares are
+    // never negative
+    var vals = [], total = 0;
+    for (i = 0; i < P; i++) { var v = Math.max(0, state.scores[i] + scoreArea(state.segments, cfg, i, state.poison, state.boost).area); vals.push(v); total += v; }
+    var lead = 0, segs = [];
+    for (i = 0; i < P; i++) {
+      var share = total > 0 ? (100 * vals[i]) / total : 100 / P;
+      if (vals[i] > vals[lead]) lead = i;
+      segs.push('<div class="eseg p' + i + '" style="height:' + share + '%">' +
+        (share >= 10 ? Math.round(share) + "%" : "") + "</div>");
+    }
+    document.getElementById("evalbar").innerHTML = segs.join("");
+    var leadPct = Math.round(total > 0 ? (100 * vals[lead]) / total : 100 / P);
+    document.getElementById("evalnum").textContent =
+      (humanCount() === 1 && humanSeat() === lead ? "you " : "P" + (lead + 1) + " ") + leadPct + "%";
+  }
+}
+function logMove(p, text, cut) {
+  var div = document.createElement("div");
+  div.className = "mline";
+  div.innerHTML = '<span class="mchip p' + p + '"></span><span class="mtext' + (cut ? " mcut" : "") + '">' + esc(text) + "</span>";
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function newGame() {
+  if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
+  aiBusy = false; over = false; selected = null; hotTarget = null; hintEdge = null; lastEdge = null;
+  hist = [];
+  document.getElementById("confettiBox").innerHTML = "";
+  var cfg = cfgFromUi();
+  state = setup(cfg);
+  ensureSeatPlan(cfg.players);
+  try {
+    localStorage.setItem(OPTS_KEY, JSON.stringify({
+      cfg: cfg, seats: seatPlan,
+      optsVersion: 2, // cfg.maxActions is the per-player figure from now on
+    }));
+  } catch (e) {}
+  logEl.innerHTML = "";
+  render();
+  say("New game — " + pname(0) + " draws first.", "");
+  maybeAi();
+}
+function loadOpts() {
+  var saved = null;
+  try { saved = JSON.parse(localStorage.getItem(OPTS_KEY) || "null"); } catch (e) {}
+  if (saved && saved.cfg) {
+    var ids = { players: "players", size: "size", radius: "radius", shape: "shape", actionsPerTurn: "perturn", maxActions: "maxedges" };
+    for (var k in ids) if (saved.cfg[k] != null) {
+      var v = saved.cfg[k];
+      // Current saves (optsVersion 2) store cfg.maxActions as the per-player
+      // figure - the form's value directly. Older saves stored the table total
+      // (edges each x players; the classic global cap was 120), so divide those.
+      if (k === "maxActions") {
+        var sp = saved.cfg.players || 2;
+        if (!saved.optsVersion) v = Math.round(v / sp);
+        v = normEdges(v, sp);
+      }
+      document.getElementById(ids[k]).value = v;
+    }
+    // the UI only offers 2 or 4 players now - old 3-player saves fall back to 4
+    var plSel = document.getElementById("players");
+    if (plSel.value !== "2" && plSel.value !== "4") plSel.value = "4";
+    var maxSel = document.getElementById("maxedges"), okOpt = false;
+    for (var o = 0; o < maxSel.options.length; o++)
+      if (maxSel.options[o].value === maxSel.value) okOpt = true;
+    if (!okOpt) maxSel.value = String(edgesDefault(+document.getElementById("players").value));
+    edgesTouched = +maxSel.value !== edgesDefault(+document.getElementById("players").value);
+    // old saves may name a shape that no longer exists (triangle) - fall back
+    var shpSel = document.getElementById("shape");
+    if (shpSel.value !== "square" && shpSel.value !== "octagon") shpSel.value = "square";
+    // variant checkboxes: absent in old saves -> barriers/poison/boost off,
+    // enclaves on (the classic site's behaviour)
+    document.getElementById("barriers").checked = !!saved.cfg.barriers;
+    document.getElementById("enclaves").checked = saved.cfg.enclaves !== false;
+    document.getElementById("poison").checked = !!saved.cfg.poison;
+    document.getElementById("boost").checked = !!saved.cfg.boost;
+    seatPlan = Array.isArray(saved.seats) ? saved.seats.slice() : [];
+    if (!seatPlan.length && saved.aiside != null) {
+      // migrate old single-dropdown prefs
+      var lvl = saved.aidiff || "normal", P = +document.getElementById("players").value;
+      for (var i = 0; i < P; i++) seatPlan.push("human");
+      if (saved.aiside === "all") seatPlan = seatPlan.map(function () { return lvl; });
+      else if (saved.aiside !== "none") seatPlan[Math.min(+saved.aiside || 1, P - 1)] = lvl;
+    }
+    ensureSeatPlan(+document.getElementById("players").value);
+  }
+}
+function doMove(move) {
+  if (over) return;
+  var seat = state.turn, wasLeft = state.actionsLeft, P = state.cfg.players;
+  hist.push(state);
+  var beforeScores = state.scores.map(function (s) { return s; });
+  state = play(state, move);
+  var cut = false;
+  if (move !== "pass") {
+    var ends = move.split("-");
+    lastEdge = [EncloseEngine.parseNode(ends[0]), EncloseEngine.parseNode(ends[1])];
+    var mineSet = new Set();
+    var newSegs = state.segments[seat];
+    var last = newSegs[newSegs.length - 1];
+    var ln = EncloseEngine.normalize(last);
+    for (var p = 0; p < P; p++) {
+      if (p === seat) continue;
+      var gone = null;
+      for (var q = 0; q < hist[hist.length - 1].segments[p].length; q++) {
+        var oldSeg = hist[hist.length - 1].segments[p][q];
+        if (EncloseEngine.intersect(ln, EncloseEngine.normalize(oldSeg)) !== 0 && state.segments[p].length < hist[hist.length - 1].segments[p].length) { gone = oldSeg; break; }
+      }
+      if (gone) { cut = true; break; }
+    }
+  } else lastEdge = null;
+  selected = null; hotTarget = null; hintEdge = null;
+  var text = move === "pass" ? "pass" : ends[0] + "–" + ends[1] + (cut ? " ✂" : "") + (wasLeft < state.cfg.actionsPerTurn && wasLeft > 0 ? " · 2nd" : "");
+  logMove(seat, text, cut);
+  if (EncloseEngine.gameOver(state)) {
+    over = true;
+    var res = observe(state, "global").result;
+    say(res.winners.map(pname).join(" & ") + (res.winners.length > 1 ? " draw — equal scores." : " win — higher score."), "good");
+    render(); blip("over"); confetti();
+    return;
+  }
+  if (state.turn !== seat) {
+    var banked = [];
+    for (var i = 0; i < P; i++) banked.push(pname(i) + " " + fmt(state.scores[i] / AREA_UNIT));
+    say("Turn over — banked: " + banked.join(" · "), "warn");
+  } else say((humanCount() === 1 && isHuman(seat) ? "Your" : pname(seat) + "'s") + " move (" + state.actionsLeft + " left).", "");
+  render();
+  blip(cut ? "cut" : "edge");
+  maybeAi();
+}
+function maybeAi() {
+  if (over || aiBusy) return;
+  var seats = aiSeats();
+  if (seats.has(state.turn)) {
+    aiBusy = true;
+    render();
+    say(pname(state.turn) + " is thinking…", "");
+    var me = state.turn, token = state;
+    aiTimer = setTimeout(function () {
+      aiTimer = null;
+      if (over || state !== token) { aiBusy = false; return; }
+      var level = seatLevel(me);
+      var move;
+      try { move = chooseMove(state, me, { level: level }); }
+      catch (e) { move = "pass"; }
+      aiBusy = false;
+      doMove(move);
+    }, 80);
+    return;
+  }
+  // no Pass button: when a human seat has no legal edge, the turn passes itself
+  if (isHuman(state.turn) && EncloseEngine.legalMoves(state)[0] === "pass") {
+    aiBusy = true;
+    render();
+    say(pname(state.turn) + " has no legal moves — passing…", "warn");
+    aiTimer = setTimeout(function () {
+      aiTimer = null; aiBusy = false;
+      if (!over) doMove("pass");
+    }, 700);
+  }
+}
+function undoOne() {
+  if (!hist.length) return false;
+  state = hist.pop();
+  over = false; selected = null; hotTarget = null; hintEdge = null; lastEdge = null;
+  document.getElementById("confettiBox").innerHTML = "";
+  return true;
+}
+function undo() {
+  if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; aiBusy = false; }
+  if (!hist.length) return;
+  var human = humanSeat(), popped = 0;
+  do { undoOne(); popped++; } while (hist.length && state.turn !== human && aiSeats().has(state.turn));
+  for (var i = 0; i < popped && logEl.lastChild; i++) logEl.removeChild(logEl.lastChild);
+  say("Undone — back to your move.", "");
+  render();
+  maybeAi(); // resume AI / auto-pass if the restored turn needs it
+}
+function nodeFromEvent(ev) {
+  var el = document.elementFromPoint(ev.clientX, ev.clientY);
+  if (!el) return null;
+  var t = el.getAttribute && (el.getAttribute("data-target") || el.getAttribute("data-node"));
+  return t;
+}
+function tryCommit(targetName) {
+  if (!selected) return false;
+  var move = EncloseEngine.nodeName(selected) + "-" + targetName;
+  var moves = EncloseEngine.legalMoves(state);
+  if (moves.indexOf(move) >= 0) { doMove(move); return true; }
+  say("Not a legal target from " + EncloseEngine.nodeName(selected) + ".", "bad");
+  return false;
+}
+function onPointerDown(ev) {
+  if (over || aiBusy || !isHuman(state.turn)) return;
+  var el = document.elementFromPoint(ev.clientX, ev.clientY);
+  if (!el || !el.getAttribute) return;
+  var tgt = el.getAttribute("data-target");
+  if (tgt) { tryCommit(tgt); return; }
+  var nd = el.getAttribute("data-node");
+  if (nd) {
+    if (selected && nd !== EncloseEngine.nodeName(selected)) {
+      var cand = EncloseEngine.nodeName(selected) + "-" + nd;
+      if (EncloseEngine.legalMoves(state).indexOf(cand) >= 0) { doMove(cand); return; }
+    }
+    selected = EncloseEngine.parseNode(nd);
+    hotTarget = null; hintEdge = null;
+    dragging = true;
+    render();
+    ev.preventDefault();
+    return;
+  }
+  if (selected) { selected = null; hotTarget = null; render(); }
+}
+function onPointerMove(ev) {
+  if (!dragging) return;
+  var t = nodeFromEvent(ev);
+  if (t !== hotTarget) { hotTarget = t; render(); }
+}
+function onPointerUp(ev) {
+  if (!dragging) return;
+  dragging = false;
+  var t = nodeFromEvent(ev);
+  if (t && selected && EncloseEngine.nodeName(selected) !== t) {
+    if (!tryCommit(t)) { hotTarget = null; render(); }
+  } else { hotTarget = null; render(); }
+}
+svg.addEventListener("pointerdown", onPointerDown);
+svg.addEventListener("pointermove", onPointerMove);
+svg.addEventListener("pointerup", onPointerUp);
+svg.addEventListener("pointercancel", function () { dragging = false; hotTarget = null; render(); });
+document.getElementById("undo").addEventListener("click", undo);
+document.getElementById("reset").addEventListener("click", newGame);
+document.getElementById("hint").addEventListener("click", function () {
+  if (over || aiBusy || !isHuman(state.turn)) return;
+  var mv;
+  try { mv = chooseMove(state, state.turn, { level: "hint" }); }
+  catch (e) { mv = "pass"; }
+  if (mv === "pass") { say("Hint: no legal moves — the turn passes automatically.", "warn"); hintEdge = null; }
+  else {
+    var ends = mv.split("-");
+    hintEdge = [EncloseEngine.parseNode(ends[0]), EncloseEngine.parseNode(ends[1])];
+    say("Hint: try " + ends[0] + "–" + ends[1] + ".", "");
+  }
+  render();
+});
+  ["players", "size", "radius", "shape", "perturn", "maxedges", "barriers", "enclaves", "poison", "boost"].forEach(function (id) {
+  document.getElementById(id).addEventListener("change", function () {
+    if (id === "players") {
+      seatPlan = []; ensureSeatPlan(+document.getElementById("players").value);
+      renderSeatRows();
+      // follow the default for the new table size until the player picks their own
+      if (!edgesTouched) {
+        var d = edgesDefault(+document.getElementById("players").value);
+        document.getElementById("maxedges").value = String(d);
+      }
+    }
+    if (id === "maxedges") edgesTouched = true;
+    newGame();
+  });
+});
+document.getElementById("seatRows").addEventListener("change", function (ev) {
+  var t = ev.target;
+  if (!t || t.tagName !== "SELECT" || t.getAttribute("data-seat") == null) return;
+  seatPlan[+t.getAttribute("data-seat")] = t.value;
+  newGame();
+});
+document.querySelector("#seatCard h3").addEventListener("click", function () {
+  document.getElementById("seatCard").classList.toggle("open");
+});
+document.getElementById("showbar").addEventListener("change", renderSide);
+document.querySelector("#gameCard h3").addEventListener("click", function () {
+  document.getElementById("gameCard").classList.toggle("open");
+});
+document.addEventListener("keydown", function (ev) {
+  var tag = (ev.target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "select" || tag === "textarea") return;
+  var k = ev.key.toLowerCase();
+  if (k === "escape") {
+    document.getElementById("infoModal").hidden = true; return;
+  }
+  if (k === "u" || k === "z") { undo(); return; }
+  if (k === "c") { document.getElementById("gameCard").classList.toggle("open"); return; }
+  if (k === "r") { newGame(); return; }
+  if (k === "h") { document.getElementById("hint").click(); return; }
+  if (k === "a") {
+    // open the Choose players panel; on a fully-AI table grab seat 1 so the
+    // game pauses on you (set it back to AI in the panel for watch mode)
+    var allAI = seatPlan.length > 0 && seatPlan.every(function (v) { return v !== "human"; });
+    if (allAI) { seatPlan[0] = "human"; renderSeatRows(); newGame(); }
+    document.getElementById("seatCard").classList.toggle("open");
+    return;
+  }
+  if (k === "e") { var cb = document.getElementById("showbar"); cb.checked = !cb.checked; renderSide(); return; }
+  if (k === "q") { muted = !muted; try { localStorage.setItem("encloseMute", muted ? "1" : "0"); } catch (e) {}
+    say(muted ? "Quiet on — sounds muted (Q)." : "Quiet off — sounds on (Q).", ""); return; }
+  if (k === "l") { toggleTheme(); return; }
+  if (k === "i") { var m = document.getElementById("infoModal"); m.hidden = !m.hidden; return; }
+});
+function applyTheme(dark) {
+  document.body.className = dark ? "dark" : "light";
+  document.getElementById("themeToggle").textContent = dark ? "☀" : "☾";
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", dark ? "#0b0e14" : "#15803d");
+  try { localStorage.setItem(THEME_KEY, dark ? "dark" : "light"); } catch (e) {}
+}
+function toggleTheme() { applyTheme(!document.body.classList.contains("dark")); }
+(function initTheme() {
+  var saved = null;
+  try { saved = localStorage.getItem(THEME_KEY); } catch (e) {}
+  applyTheme(saved ? saved === "dark" : !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches));
+})();
+(function initMisc() {
+  try { muted = localStorage.getItem("encloseMute") === "1"; } catch (e) {}
+  document.getElementById("themeToggle").addEventListener("click", toggleTheme);
+  document.getElementById("infoBtn").addEventListener("click", function () {
+    document.getElementById("infoModal").hidden = false;
+  });
+  document.getElementById("infoClose").addEventListener("click", function () {
+    document.getElementById("infoModal").hidden = true;
+  });
+  document.getElementById("infoModal").addEventListener("click", function (ev) {
+    if (ev.target === this) this.hidden = true;
+  });
+  loadOpts();
+  renderSeatRows();
+  newGame();
+  if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0)
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+})();
+window.__enclose = {
+  get state() { return state; },
+  get view() { return observe(state, "global"); },
+  play: doMove, newGame: newGame, setup: setup, advance: maybeAi,
+  get cfg() { return state.cfg; },
+  engine: EncloseEngine, ai: EncloseAI, chooseMove: chooseMove,
+};
+</script>
+</body>
+</html>

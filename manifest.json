@@ -1,0 +1,13 @@
+{
+  "name": "Enclose",
+  "short_name": "Enclose",
+  "description": "Draw fences on a lattice, cut your rivals' walls, and bank the land you close. 2-4 players, hot-seat or AI.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f3efe4",
+  "theme_color": "#15803d",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
